@@ -10,23 +10,31 @@ def calculate_divisor(d_score):
 def calculate_multiplier(m_score):
     return 2 if m_score >= 9 else (1.5 if m_score >= 7 else 1)
 
+def game_data():
+    return (st.session_state.participant_names, st.session_state.scores) \
+        if st.session_state.game == 'solo' \
+        else (st.session_state.team_names, st.session_state.teams)
+
 # ---------- SESSION STATE ----------
 if 'page' not in st.session_state:
     st.session_state.page = 'home'
     st.session_state.game = None
     st.session_state.setup_step = 0
-    st.session_state.num_teams = 0
+    st.session_state.num_participants = 0
     st.session_state.volleys = 0
     st.session_state.team_names = []
+    st.session_state.participant_names = []
     st.session_state.teams = {}
+    st.session_state.scores = {}
     st.session_state.current_volley = 1
-    st.session_state.current_team_index = 0
+    st.session_state.current_index = 0
     st.session_state.button_key = 0
 ss = st.session_state
 
 # ---------- NAVIGAZIONE ----------
 if ss.page == 'home':
     st.title("Archery Games Hub")
+    st.write("Scegli la modalità:")
     if st.button("Archery Duo Challenge"):
         ss.game = 'duo'
         ss.page = 'rules'
@@ -35,9 +43,17 @@ if ss.page == 'home':
         ss.game = 'classica'
         ss.page = 'rules_classica'
         st.rerun()
+    if st.button("Bull’s Revenge"):
+        ss.game = 'bull'
+        ss.page = 'rules_bull'
+        st.rerun()
+    if st.button("18 m Singolo"):
+        ss.game = 'solo'
+        ss.page = 'rules_solo'
+        st.rerun()
 
 # -------------------------------------------------
-# DUO CHALLENGE – REgole
+# REgole giochi
 # -------------------------------------------------
 elif ss.page == 'rules':
     st.title("Archery Duo Challenge – Regole")
@@ -45,31 +61,43 @@ elif ss.page == 'rules':
 - Squadra mista: principiante + veterano  
 - Volée dispari: principiante 3 frecce, veterano 1 freccia = **divisore**  
 - Volée pari: veterano 3 frecce, principiante 1 freccia = **moltiplicatore**  
-- Numero di volée pari  
-- Punteggio cumulativo  
-
-### Scala Punteggi
-| Freccia | Moltiplicatore | Divisore |
-|---------|----------------|----------|
-| 10-9    | ×2             | ÷1       |
-| 8-7     | ×1.5           | ÷1.5     |
-| 6-1 / M | ×1             | ÷2       |
+- Numero di volée pari – punteggio cumulativo  
 """)
     if st.button("Inizia Gioco"):
         ss.page = 'setup'
         ss.setup_step = 0
         st.rerun()
 
-# -------------------------------------------------
-# LA CLASSICA – REgole
-# -------------------------------------------------
 elif ss.page == 'rules_classica':
     st.title("La Classica – Regole")
     st.markdown("""
-- Ogni arciero tira 3 frecce (solo valori 1-10 o M).  
-- Il punteggio della squadra è la **somma dei 6 valori** (3+3).  
-- Volée pari o dispari → nessun moltiplicatore/divisore.  
-- Numero di volée pari.  
+- Ogni arciero tira 3 frecce → somma 6 valori per squadra  
+- Nessun moltiplicatore  
+- Numero di volée pari  
+""")
+    if st.button("Inizia Gioco"):
+        ss.page = 'setup'
+        ss.setup_step = 0
+        st.rerun()
+
+elif ss.page == 'rules_bull':
+    st.title("Bull’s Revenge – Regole")
+    st.markdown("""
+- **Volée dispari**: Arciere A tira 3 frecce (1-10), Arciere B la Bull (1-10 o M)  
+- **Volée pari**: ruoli invertiti  
+- **Punteggio squadra** = (somma 3 frecce) × moltiplicatore Bull  
+  - 10 → ×3, 9-8 → ×2, 7-6 → ×1.5, 5-1 → ×1, 0 (M) → 0  
+""")
+    if st.button("Inizia Gioco"):
+        ss.page = 'setup'
+        ss.setup_step = 0
+        st.rerun()
+
+elif ss.page == 'rules_solo':
+    st.title("18 m Singolo – Regole")
+    st.markdown("""
+- Gara individuale – 3 frecce per volée  
+- Valori 1-10 o M (0) – punteggio cumulativo  
 """)
     if st.button("Inizia Gioco"):
         ss.page = 'setup'
@@ -82,88 +110,145 @@ elif ss.page == 'rules_classica':
 elif ss.page == 'setup':
     st.title(f"Setup Torneo – {ss.game.title()}")
     if ss.setup_step == 0:
-        n = st.number_input("Numero Squadre", 1, 20, 2)
-        v = st.number_input("Volée per Squadra (pari)", 2, 10, 4, step=2)
-        if st.button("Conferma Configurazione"):
-            ss.num_teams = n
+        n = st.number_input("Numero squadre / partecipanti", 1, 20, 2)
+        v = st.number_input("Numero di volée", 2, 10, 4, step=2)
+        if st.button("Conferma"):
+            ss.num_participants = n
             ss.volleys = v
             ss.setup_step = 1
             st.rerun()
     else:
-        st.subheader("Inserisci nomi delle squadre")
-        if not ss.team_names:
-            ss.team_names = [f"Squadra {i+1}" for i in range(ss.num_teams)]
-        for i in range(ss.num_teams):
-            ss.team_names[i] = st.text_input(f"Squadra {i+1}", value=ss.team_names[i], key=f"name_{i}")
+        st.subheader("Inserisci i nomi")
+        names_list = ss.participant_names if ss.game == 'solo' else ss.team_names
+        data_dict  = ss.scores       if ss.game == 'solo' else ss.teams
+
+        if not names_list:
+            names_list.extend([f"{'Arciere' if ss.game == 'solo' else 'Squadra'} {i+1}"
+                               for i in range(ss.num_participants)])
+        for i in range(ss.num_participants):
+            names_list[i] = st.text_input(f"{'Arciere' if ss.game == 'solo' else 'Squadra'} {i+1}",
+                                          value=names_list[i], key=f"name_{i}")
         if st.button("Conferma Nomi"):
-            for name in ss.team_names:
-                ss.teams[name] = {'scores': [], 'total': 0}
+            for name in names_list:
+                data_dict[name] = {'scores': [], 'total': 0}
             ss.page = 'game'
             ss.current_volley = 1
-            ss.current_team_index = 0
+            ss.current_index = 0
             st.rerun()
 
 # -------------------------------------------------
 # GAME – routing
 # -------------------------------------------------
 elif ss.page == 'game':
-    names = ss.team_names
-    current = names[ss.current_team_index]
-    team = ss.teams[current]
+    names, data = game_data()
+    current = names[ss.current_index]
     volley = ss.current_volley
     for n in names:
-        ss.pop(f"done_{n}_{volley}", None)
+        data[n].pop(f"done_{n}_{volley}", None)
 
+    # ----------- DUO -----------
     if ss.game == 'duo':
         st.title(f"Volée {volley} – {current}  (Duo)")
         st.info("**Volée Divisoria**" if volley % 2 else "**Volée Moltiplicatrice**")
-        st.write(f"Totale attuale: **{team['total']}**")
-        cols = st.columns(4)
-        inputs = [c.selectbox(f"Freccia {i+1}", options=list(range(1, 11)) + ['M'], key=f"inp_{current}_{volley}_{i}")
-                  for i, c in enumerate(cols)]
+        st.write(f"Totale attuale: **{data[current]['total']}**")
+        inputs = [st.selectbox(f"Freccia {i+1}", list(range(1, 11)) + ['M'],
+                              key=f"inp_{current}_{volley}_{i}") for i in range(4)]
         if st.button("Valida Volée"):
             nums = [0 if v == 'M' else int(v) for v in inputs]
             last = nums[3]
             sum_three = sum(nums[:3])
             score = math.ceil(sum_three / calculate_divisor(last)) if volley % 2 \
                     else math.ceil(sum_three * calculate_multiplier(last))
-            team['scores'].append(score)
-            team['total'] += score
-            st.success(f"Punteggio: {score} → Totale: {team['total']}")
-            ss.current_team_index += 1
-            if ss.current_team_index >= len(names):
-                ss.current_team_index = 0
+            data[current]['scores'].append(score)
+            data[current]['total'] += score
+            st.success(f"Punteggio: {score} → Totale: {data[current]['total']}")
+            ss.current_index += 1
+            if ss.current_index >= len(names):
+                ss.current_index = 0
                 ss.current_volley += 1
                 ss.page = 'mid_ranking' if ss.current_volley <= ss.volleys else 'results'
             st.rerun()
 
+    # ----------- CLASSICA -----------
     elif ss.game == 'classica':
         st.title(f"Volée {volley} – {current}  (Classica)")
-        st.write("Ogni arciero tira 3 frecce (1-10, M=0) → somma 6 valori")
-        st.write(f"Totale attuale: **{team['total']}**")
-        cols = st.columns(6)
-        inputs = [c.selectbox(f"Freccia {i+1}", options=list(range(1, 11)) + ['M'], key=f"inp_{current}_{volley}_{i}")
-                  for i, c in enumerate(cols)]
+        st.write("Ogni arciero tira 3 frecce → somma 6 valori")
+        st.write(f"Totale attuale: **{data[current]['total']}**")
+        inputs = [st.selectbox(f"Freccia {i+1}", list(range(1, 11)) + ['M'],
+                              key=f"inp_{current}_{volley}_{i}") for i in range(6)]
         if st.button("Valida Volée"):
             score = sum(0 if v == 'M' else int(v) for v in inputs)
-            team['scores'].append(score)
-            team['total'] += score
-            st.success(f"Punteggio volée: {score} → Totale: {team['total']}")
-            ss.current_team_index += 1
-            if ss.current_team_index >= len(names):
-                ss.current_team_index = 0
+            data[current]['scores'].append(score)
+            data[current]['total'] += score
+            st.success(f"Punteggio volée: {score} → Totale: {data[current]['total']}")
+            ss.current_index += 1
+            if ss.current_index >= len(names):
+                ss.current_index = 0
+                ss.current_volley += 1
+                ss.page = 'mid_ranking' if ss.current_volley <= ss.volleys else 'results'
+            st.rerun()
+
+    # ----------- BULL’S REVENGE -----------
+    elif ss.game == 'bull':
+        st.title(f"Volée {volley} – {current}  (Bull’s Revenge)")
+        role = "Arciere A 3 frecce – Arciere B la Bull" if volley % 2 else "Arciere B 3 frecce – Arciere A la Bull"
+        st.write(role)
+        st.write(f"Totale attuale: **{data[current]['total']}**")
+        normal = [st.selectbox(f"3 frecce {i+1}", list(range(1, 11)), key=f"norm_{current}_{volley}_{i}")
+                  for i in range(3)]
+        bull = st.selectbox("Bull", list(range(1, 11)) + ['M'], key=f"bull_{current}_{volley}")
+        if st.button("Valida Volée"):
+            sum_norm = sum(normal)
+            bull_val = 0 if bull == 'M' else int(bull)
+            if bull_val == 0:
+                score = 0
+            elif bull_val == 10:
+                score = sum_norm * 3
+            elif bull_val >= 8:
+                score = sum_norm * 2
+            elif bull_val >= 6:
+                score = int(sum_norm * 1.5)
+            else:
+                score = sum_norm
+            data[current]['scores'].append(score)
+            data[current]['total'] += score
+            st.success(f"Punteggio volée: {score} → Totale: {data[current]['total']}")
+            ss.current_index += 1
+            if ss.current_index >= len(names):
+                ss.current_index = 0
+                ss.current_volley += 1
+                ss.page = 'mid_ranking' if ss.current_volley <= ss.volleys else 'results'
+            st.rerun()
+
+    # ----------- 18 m SINGOLO -----------
+    elif ss.game == 'solo':
+        st.title(f"Volée {volley} – {current}  (18 m Singolo)")
+        st.write("3 frecce (1-10 o M) – somma punteggio")
+        st.write(f"Totale attuale: **{data[current]['total']}**")
+        inputs = [st.selectbox(f"Freccia {i+1}", list(range(1, 11)) + ['M'],
+                               key=f"inp_{current}_{volley}_{i}") for i in range(3)]
+        if st.button("Valida Volée"):
+            score = sum(0 if v == 'M' else int(v) for v in inputs)
+            data[current]['scores'].append(score)
+            data[current]['total'] += score
+            st.success(f"Punteggio volée: {score} → Totale: {data[current]['total']}")
+            ss.current_index += 1
+            if ss.current_index >= len(names):
+                ss.current_index = 0
                 ss.current_volley += 1
                 ss.page = 'mid_ranking' if ss.current_volley <= ss.volleys else 'results'
             st.rerun()
 
 # -------------------------------------------------
-# MID RANKING – tabella senza errori di formattazione
+# MID RANKING
 # -------------------------------------------------
 elif ss.page == 'mid_ranking':
     st.title(f"Classifica dopo la Volée {ss.current_volley - 1}")
+    names, data = game_data()
+    labels = 'Nome' if ss.game == 'solo' else 'Squadra'
     df_mid = (
-        pd.DataFrame([(t, d['total']) for t, d in ss.teams.items()],
-                     columns=['Squadra', 'Totale'])
+        pd.DataFrame([(n, data[n]['total']) for n in names],
+                     columns=[labels, 'Totale'])
         .sort_values('Totale', ascending=False)
         .reset_index(drop=True)
     )
@@ -174,35 +259,37 @@ elif ss.page == 'mid_ranking':
         st.rerun()
 
 # -------------------------------------------------
-# RESULTS – tabella finale senza errori
+# RESULTS
 # -------------------------------------------------
 elif ss.page == 'results':
     st.title("Classifica Finale")
+    names, data = game_data()
+    labels = 'Nome' if ss.game == 'solo' else 'Squadra'
     df_final = (
-        pd.DataFrame([(t, d['total']) for t, d in ss.teams.items()],
-                     columns=['Squadra', 'Totale'])
+        pd.DataFrame([(n, data[n]['total']) for n in names],
+                     columns=[labels, 'Totale'])
         .sort_values('Totale', ascending=False)
         .reset_index(drop=True)
     )
     df_final.index += 1
     st.dataframe(df_final.astype(str), use_container_width=True)
 
-    rows = [{'Squadra': team} for team in ss.team_names]
-    for team in ss.teams:
+    rows = [{labels: n} for n in names]
+    for n in names:
         for v in range(1, ss.volleys + 1):
-            rows[ss.team_names.index(team)][f'Volée {v}'] = (
-                ss.teams[team]['scores'][v - 1] if v <= len(ss.teams[team]['scores']) else ''
+            rows[names.index(n)][f'Volée {v}'] = (
+                data[n]['scores'][v - 1] if v <= len(data[n]['scores']) else ''
             )
-        rows[ss.team_names.index(team)]['Totale'] = ss.teams[team]['total']
+        rows[names.index(n)]['Totale'] = data[n]['total']
     csv = pd.DataFrame(rows).to_csv(index=False)
     st.download_button("Scarica CSV", csv, f"risultati_{ss.game}.csv", "text/csv")
 
     st.subheader("Evoluzione Punteggi")
     fig, ax = plt.subplots()
-    for t, d in ss.teams.items():
-        ax.plot(range(1, len(d['scores']) + 1),
-                pd.Series(d['scores']).cumsum(),
-                marker='o', label=t)
+    for n in names:
+        ax.plot(range(1, len(data[n]['scores']) + 1),
+                pd.Series(data[n]['scores']).cumsum(),
+                marker='o', label=n)
     ax.set_xlabel("Volée")
     ax.set_ylabel("Punteggio")
     ax.legend()
