@@ -11,8 +11,11 @@ def calculate_multiplier(m_score):
     return 2 if m_score >= 9 else (1.5 if m_score >= 7 else 1)
 
 def game_data():
-    return (ss.participant_names, ss.scores) if ss.game == 'solo' \
-        else (ss.team_names, ss.teams)
+    """Restituisce (nomi, dict) in base al tipo di gioco."""
+    if st.session_state.game == 'solo':
+        return st.session_state.participant_names, st.session_state.scores
+    else:
+        return st.session_state.team_names, st.session_state.teams
 
 # ---------- SESSION STATE ----------
 if 'page' not in st.session_state:
@@ -55,7 +58,7 @@ if ss.page == 'home':
         st.rerun()
 
 # -------------------------------------------------
-# REgole giochi
+# Regole giochi
 # -------------------------------------------------
 elif ss.page == 'rules':
     st.title("Archery Duo Challenge – Regole")
@@ -65,10 +68,16 @@ elif ss.page == 'rules':
 - Volée pari: veterano 3 frecce, principiante 1 freccia = **moltiplicatore**  
 - Numero di volée pari – punteggio cumulativo  
 """)
-    if st.button("Inizia Gioco"):
-        ss.page = 'setup'
-        ss.setup_step = 0
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("← Indietro", use_container_width=True):
+            ss.page = 'home'
+            st.rerun()
+    with col2:
+        if st.button("Inizia Gioco", use_container_width=True):
+            ss.page = 'setup'
+            ss.setup_step = 0
+            st.rerun()
 
 elif ss.page == 'rules_classica':
     st.title("La Classica – Regole")
@@ -77,10 +86,16 @@ elif ss.page == 'rules_classica':
 - Nessun moltiplicatore  
 - Numero di volée pari  
 """)
-    if st.button("Inizia Gioco"):
-        ss.page = 'setup'
-        ss.setup_step = 0
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("← Indietro", use_container_width=True):
+            ss.page = 'home'
+            st.rerun()
+    with col2:
+        if st.button("Inizia Gioco", use_container_width=True):
+            ss.page = 'setup'
+            ss.setup_step = 0
+            st.rerun()
 
 elif ss.page == 'rules_bull':
     st.title("Bull’s Revenge – Regole")
@@ -90,24 +105,35 @@ elif ss.page == 'rules_bull':
 - **Punteggio squadra** = (somma 3 frecce) × moltiplicatore Bull  
   - 10 → ×3, 9-8 → ×2, 7-6 → ×1.5, 5-1 → ×1, 0 (M) → 0  
 """)
-    if st.button("Inizia Gioco"):
-        ss.page = 'setup'
-        ss.setup_step = 0
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("← Indietro", use_container_width=True):
+            ss.page = 'home'
+            st.rerun()
+    with col2:
+        if st.button("Inizia Gioco", use_container_width=True):
+            ss.page = 'setup'
+            ss.setup_step = 0
+            st.rerun()
 
 elif ss.page == 'rules_impact':
     st.title("Red Impact – Regole")
     st.markdown("""
-- **Volée dispari**: Arciere A 3 frecce (punteggio base), Arciere B 1 freccia “target”  
+- **Volée dispari**: Arciere A 3 frecce, Arciere B 1 target  
 - **Volée pari**: ruoli invertiti  
-- **Effetto target**:  
-  - 7-10 (rosso) → **×2** sul punteggio base  
-  - 1-6 o M → **nessun effetto** (punteggio base resta uguale)  
+- Target 7-10 → ×2 sul punteggio base  
+- 1-6 o M → nessun effetto  
 """)
-    if st.button("Inizia Gioco"):
-        ss.page = 'setup'
-        ss.setup_step = 0
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("← Indietro", use_container_width=True):
+            ss.page = 'home'
+            st.rerun()
+    with col2:
+        if st.button("Inizia Gioco", use_container_width=True):
+            ss.page = 'setup'
+            ss.setup_step = 0
+            st.rerun()
 
 elif ss.page == 'rules_solo':
     st.title("18 m Singolo – Regole")
@@ -115,10 +141,16 @@ elif ss.page == 'rules_solo':
 - Gara individuale – 3 frecce per volée  
 - Valori 1-10 o M (0) – punteggio cumulativo  
 """)
-    if st.button("Inizia Gioco"):
-        ss.page = 'setup'
-        ss.setup_step = 0
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("← Indietro", use_container_width=True):
+            ss.page = 'home'
+            st.rerun()
+    with col2:
+        if st.button("Inizia Gioco", use_container_width=True):
+            ss.page = 'setup'
+            ss.setup_step = 0
+            st.rerun()
 
 # -------------------------------------------------
 # SETUP COMUNE
@@ -126,7 +158,7 @@ elif ss.page == 'rules_solo':
 elif ss.page == 'setup':
     st.title(f"Setup Torneo – {ss.game.title()}")
     if ss.setup_step == 0:
-        n = st.number_input("Numero squadre / partecipanti", 1, 20, value=2)
+        n = st.number_input("Numero squadre / partecipanti", 1, 20, 2)
         v = st.number_input("Numero di volée", 2, 10, 4, step=2)
         if st.button("Conferma"):
             ss.num_participants = n
@@ -136,8 +168,7 @@ elif ss.page == 'setup':
     else:
         st.subheader("Inserisci i nomi")
         names_list = ss.participant_names if ss.game == 'solo' else ss.team_names
-        data_dict  = ss.scores       if ss.game == 'solo' else ss.teams
-
+        data_dict = ss.scores if ss.game == 'solo' else ss.teams
         if not names_list:
             names_list.extend([f"{'Arciere' if ss.game == 'solo' else 'Squadra'} {i+1}"
                                for i in range(ss.num_participants)])
@@ -239,21 +270,35 @@ elif ss.page == 'game':
     # ----------- RED IMPACT -----------
     elif ss.game == 'impact':
         st.title(f"Volée {volley} – {current}  (Red Impact)")
-        role = "Arciere A 3 frecce – Arciere B la target" if volley % 2 else "Arciere B 3 frecce – Arciere A la target"
+        role = "Arciere A 3 frecce – Arciere B target" if volley % 2 else "Arciere B 3 frecce – Arciere A target"
         st.write(role)
         st.write(f"Totale attuale: **{data[current]['total']}**")
-
         normal = [st.selectbox(f"3 frecce {i+1}", list(range(1, 11)), key=f"norm_{current}_{volley}_{i}")
                   for i in range(3)]
         target = st.selectbox("Target (×2 se 7-10)", list(range(1, 11)) + ['M'], key=f"target_{current}_{volley}")
-
         if st.button("Valida Volée"):
             sum_norm = sum(normal)
             target_val = 0 if target == 'M' else int(target)
-            if target_val >= 7:
-                score = sum_norm * 2
-            else:
-                score = sum_norm
+            score = sum_norm * 2 if target_val >= 7 else sum_norm
+            data[current]['scores'].append(score)
+            data[current]['total'] += score
+            st.success(f"Punteggio volée: {score} → Totale: {data[current]['total']}")
+            ss.current_index += 1
+            if ss.current_index >= len(names):
+                ss.current_index = 0
+                ss.current_volley += 1
+                ss.page = 'mid_ranking' if ss.current_volley <= ss.volleys else 'results'
+            st.rerun()
+
+    # ----------- 18 m SINGOLO -----------
+    elif ss.game == 'solo':
+        st.title(f"Volée {volley} – {current}  (18 m Singolo)")
+        st.write("3 frecce (1-10 o M) – somma punteggio")
+        st.write(f"Totale attuale: **{data[current]['total']}**")
+        inputs = [st.selectbox(f"Freccia {i+1}", list(range(1, 11)) + ['M'],
+                               key=f"inp_{current}_{volley}_{i}") for i in range(3)]
+        if st.button("Valida Volée"):
+            score = sum(0 if v == 'M' else int(v) for v in inputs)
             data[current]['scores'].append(score)
             data[current]['total'] += score
             st.success(f"Punteggio volée: {score} → Totale: {data[current]['total']}")
